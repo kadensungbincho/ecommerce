@@ -1,7 +1,7 @@
 from django.conf import settings
 from django.db import models
 from django.db.models.signals import post_save, pre_save
-from django.core.urlresolvers import reverse
+from django.urls import reverse
 from accounts.models import GuestEmail
 User = settings.AUTH_USER_MODEL
 
@@ -114,7 +114,7 @@ class CardManger(models.Manager):
 
 
 class Card(models.Model):
-    billing_profile     = models.ForeignKey(BillingProfile)
+    billing_profile     = models.ForeignKey(BillingProfile, on_delete=models.CASCADE)
     stripe_id           = models.CharField(max_length=120, null=True, blank=True)
     brand               = models.CharField(max_length=120, null=True, blank=True)
     country             = models.CharField(max_length=20, null=True, blank=True)
@@ -173,7 +173,7 @@ class ChargeManager(models.Manager):
 
 
 class Charge(models.Model):
-    billing_profile     = models.ForeignKey(BillingProfile)
+    billing_profile     = models.ForeignKey(BillingProfile, on_delete=models.CASCADE)
     stripe_id           = models.CharField(max_length=120, null=True, blank=True)
     paid                = models.BooleanField(default=False)
     refunded            = models.BooleanField(default=False)

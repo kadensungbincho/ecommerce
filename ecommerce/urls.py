@@ -38,11 +38,11 @@ urlpatterns = [
     url(r'^register/guest/$', guest_register_view, name='guest_register'),
     url(r'^logout/$', LogoutView.as_view(), name='logout'),
     url(r'^api/cart/', cart_detail_api_view, name='api-cart'),
-    url(r'^cart/', include("carts.urls", namespace='cart')),
+    url(r'^cart/', include(("carts.urls", "cart"), namespace='cart')),
     url(r'^register/$', RegisterView.as_view(), name='register'),
     url(r'^bootstrap/$', TemplateView.as_view(template_name='bootstrap/example.html')),
-    url(r'^products/', include("products.urls", namespace='products')),
-    url(r'^search/', include("search.urls", namespace='search')),
+    url(r'^products/', include(("products.urls", "products"), namespace='products')),
+    url(r'^search/', include(("search.urls", "search"), namespace='search')),
     url(r'^admin/', admin.site.urls),
 ]
 
