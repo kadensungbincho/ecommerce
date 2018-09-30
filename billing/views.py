@@ -11,7 +11,7 @@ stripe.api_key = STRIPE_SECRET_KEY
 from .models import BillingProfile, Card
 
 def payment_method_view(request):
-    # if request.user.is_authenticated():
+    # if request.user.is_authenticated:
     #     billing_profile = request.user.billingprofile
     #     my_customer_id = billing_profile.my_customer_id
         
