@@ -1,8 +1,15 @@
+from django.conf import settings
 from django.db import models
+from django.db.models.signals import pre_save, post_save
 from django.contrib.auth.models import (
     AbstractBaseUser, BaseUserManager
 )
 
+from django.core.mail import send_mail
+from django.template.loader import get_template
+
+from ecommerce.utils import random_string_generator, unique_key_generator
+# send_mail(subject, message, from_email, recipient_list, html_message)
 
 class UserManager(BaseUserManager):
     def create_user(self, email, full_name=None, password=None, is_active=True, is_staff=False, is_admin=False):
@@ -17,7 +24,7 @@ class UserManager(BaseUserManager):
         user_obj.set_password(password) # change user password
         user_obj.staff = is_staff
         user_obj.admin = is_admin
-        user_obj.active = is_active
+        user_obj.is_active = is_active
         user_obj.save(using=self._db)
         return user_obj
 
@@ -44,7 +51,6 @@ class UserManager(BaseUserManager):
 class User(AbstractBaseUser):
     email       = models.EmailField(max_length=255, unique=True)
     full_name   = models.CharField(max_length=255, blank=True, null=True)
-    active      = models.BooleanField(default=True) # can login
     is_active   = models.BooleanField(default=True) # can login
     staff       = models.BooleanField(default=False)
     admin       = models.BooleanField(default=False) # superuser can 
@@ -85,6 +91,67 @@ class User(AbstractBaseUser):
 class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     # extend extra data
+
+
+class EmailActivation(models.Model):
+    user                = models.ForeignKey(User, on_delete=models.CASCADE)
+    email               = models.EmailField()
+    key                 = models.CharField(max_length=120, blank=True, null=True)
+    activated           = models.BooleanField(default=False)
+    forced_expired      = models.BooleanField(default=False)
+    expires             = models.IntegerField(default=7)
+    timestamp           = models.DateTimeField(auto_now_add=True)
+    update              = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.email
+
+    def regenerate(self):
+        self.key = None
+        self.save()
+        return True if self.key is not None else False
+
+    def send_activation(self):
+        if not self.activated and self.forced_expired: 
+            if self.key:
+                base_url = getattr(settings, "BASE_URL", "https://kadencho-ecommerce.herokuapp.com")
+                key_path = self.key # use reverse
+                path = "{base}{path}".format(base=base_url, path=key_path)
+                context = {
+                    'path': path,
+                    "email": self.email
+                }
+                txt_ = get_template("registration/emails/verify.txt").render(context)
+                html_ = get_template("registration/emails/verify.html").render(context)
+                subject = '1-Click Email Verification'
+                from_email = settings.DEFAULT_FROM_EMAIL
+                recipient_list = [self.email]
+                sent_mail = send_mail(
+                    subject,
+                    txt_,
+                    from_email,
+                    recipient_list,
+                    html_message=html_,
+                    fail_silently=False
+                )
+                return sent_mail
+        return False
+
+    
+def pre_save_email_activateion(sender, instance, *args, **kwargs):
+    if not instance.activated and not instance.forced_expireds:
+        if not instance.key:
+            instance.key = unique_key_generator(instance)
+
+pre_save.connect(pre_save_email_activateion, sender=EmailActivation)
+
+
+def post_save_user_create_receiver(sender, instance, created, *args, **kwargs):
+    if created:
+        obj, is_created = EmailActivation.objects.create(user=instance)
+        obj.send_activation_email()
+
+post_save.connect(post_save_user_create_receiver, sender=User)
 
 
 class GuestEmail(models.Model):

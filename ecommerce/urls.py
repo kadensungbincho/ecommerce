@@ -31,7 +31,7 @@ from .views import home_page, about_page, contact_page
 
 
 urlpatterns = [
-    url(r'^', include('django.contrib.auth.urls')),
+    url(r'^$', include('django.contrib.auth.urls')),
     url(r'^$', home_page, name='home'),
     url(r'^about/$', about_page, name='about'),
     # url(r'^accounts/login/$', RedirectView.as_view(url='/login')),

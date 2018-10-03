@@ -34,6 +34,7 @@ EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 DEFAULT_FROM_EMAIL = 'Python ecommerce'
+BASEU_URL = "127.0.0.1:8080"
 
 MANAGERS = (
     ("Kaden cho", "kadenchoecommerce@gmail.com"),
@@ -70,7 +71,7 @@ INSTALLED_APPS = [
 AUTH_USER_MODEL = 'accounts.User' # changes the built-in user model to ours
 LOGIN_URL = '/login/'
 LOGIN_URL_REDIRECT = '/'
-LOGOUT_USL = '/logout/'
+LOGOUT_URL = '/logout/'
 
 FORCE_SESSION_TO_ONE = False
 FORCE_INACTIVE_USER_ENDSESSION = False
