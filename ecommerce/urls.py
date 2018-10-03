@@ -31,7 +31,6 @@ from .views import home_page, about_page, contact_page
 
 
 urlpatterns = [
-    url(r'^$', include('django.contrib.auth.urls')),
     url(r'^$', home_page, name='home'),
     url(r'^about/$', about_page, name='about'),
     # url(r'^accounts/login/$', RedirectView.as_view(url='/login')),
@@ -55,6 +54,7 @@ urlpatterns = [
     url(r'^settings/$', RedirectView.as_view(url='/account')),
     url(r'^settings/email/$', MarketingPreferenceUpdateView.as_view(), name='marketing-pref'),
     url(r'^webhooks/mailchimp/$', MailchimpWebhookView.as_view(), name='webhooks-mailchimp'),
+    url(r'^', include('django.contrib.auth.urls')),
     url(r'^admin/', admin.site.urls),
 ]
 

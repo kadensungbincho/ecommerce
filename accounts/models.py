@@ -1,3 +1,4 @@
+from datetime import timedelta
 from django.conf import settings
 from django.db import models
 from django.db.models.signals import pre_save, post_save
@@ -7,9 +8,12 @@ from django.contrib.auth.models import (
 
 from django.core.mail import send_mail
 from django.template.loader import get_template
+from django.utils import timezone
 
 from ecommerce.utils import random_string_generator, unique_key_generator
 # send_mail(subject, message, from_email, recipient_list, html_message)
+
+DEFAULT_ACTIVATION_DAYS = getattr(settings, "DEFAULT_ACTIVATION_DAYS", 7)
 
 class UserManager(BaseUserManager):
     def create_user(self, email, full_name=None, password=None, is_active=True, is_staff=False, is_admin=False):
@@ -93,6 +97,26 @@ class Profile(models.Model):
     # extend extra data
 
 
+class EmailActivationQuerySet(models.query.QuerySet):
+    def confirmable(self):
+        now = timezone.now()
+        start_range = now - timedelta(days=DEFAULT_ACTIVATION_DAYS)
+        # does my object have a timestamp in here
+        end_range = now
+        # actiaved = False
+        # forced_expired = False
+        return self.filter(
+            actiaved = False,
+            forced_expired = False
+        ).filter(
+            timestamp__gt=start_range,
+            timestamp__lte=end_range
+        )
+
+class EmailActivationManager(models.Manager):
+    def get_queryset(self):
+        return EmailActivationQuerySet(self.model, using=self._db)
+
 class EmailActivation(models.Model):
     user                = models.ForeignKey(User, on_delete=models.CASCADE)
     email               = models.EmailField()
@@ -102,6 +126,8 @@ class EmailActivation(models.Model):
     expires             = models.IntegerField(default=7)
     timestamp           = models.DateTimeField(auto_now_add=True)
     update              = models.DateTimeField(auto_now=True)
+
+    objects = EmailActivationManager()
 
     def __str__(self):
         return self.email
@@ -139,7 +165,7 @@ class EmailActivation(models.Model):
 
     
 def pre_save_email_activateion(sender, instance, *args, **kwargs):
-    if not instance.activated and not instance.forced_expireds:
+    if not instance.activated and not instance.forced_expired:
         if not instance.key:
             instance.key = unique_key_generator(instance)
 
@@ -148,8 +174,9 @@ pre_save.connect(pre_save_email_activateion, sender=EmailActivation)
 
 def post_save_user_create_receiver(sender, instance, created, *args, **kwargs):
     if created:
-        obj, is_created = EmailActivation.objects.create(user=instance)
-        obj.send_activation_email()
+        obj, is_created = EmailActivation.objects.get_or_create(user=instance, email=instance.email)
+        print("post_save_user_creation", is_created)
+        obj.send_activation()
 
 post_save.connect(post_save_user_create_receiver, sender=User)
 

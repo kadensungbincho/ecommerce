@@ -42,7 +42,8 @@ class Mailchimp(object):
         hashed_email = get_sucscriber_hash(email)
         endpoint = self.get_members_endpoint() + "/" + hashed_email 
         data = {
-            "status": self.check_valid_status(status)
+            "status": self.check_valid_status(status),
+            "email_address": email
         }
         r = requests.put(endpoint, auth=("", self.key), data=json.dumps(data))
         return r.status_code, r.json()
