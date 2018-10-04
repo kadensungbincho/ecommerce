@@ -1,10 +1,12 @@
 from datetime import timedelta
 from django.conf import settings
 from django.db import models
+from django.db.models import Q
 from django.db.models.signals import pre_save, post_save
 from django.contrib.auth.models import (
     AbstractBaseUser, BaseUserManager
 )
+from django.urls import reverse
 
 from django.core.mail import send_mail
 from django.template.loader import get_template
@@ -106,7 +108,7 @@ class EmailActivationQuerySet(models.query.QuerySet):
         # actiaved = False
         # forced_expired = False
         return self.filter(
-            actiaved = False,
+            activated = False,
             forced_expired = False
         ).filter(
             timestamp__gt=start_range,
@@ -116,6 +118,16 @@ class EmailActivationQuerySet(models.query.QuerySet):
 class EmailActivationManager(models.Manager):
     def get_queryset(self):
         return EmailActivationQuerySet(self.model, using=self._db)
+
+    def confirmable(self):
+        return self.get_queryset().confirmable()
+
+    def email_exists(self, email):
+        return self.get_queryset().filter(
+                    Q(email=email) | Q(user__email=email)
+                    ).filter(
+                        activated=False
+                    )
 
 class EmailActivation(models.Model):
     user                = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -132,16 +144,34 @@ class EmailActivation(models.Model):
     def __str__(self):
         return self.email
 
+    def can_activate(self):
+        qs = EmailActivation.objects.filter(pk=self.pk).confirmable() # 1 object
+        if qs.exists():
+            return True
+        return False
+
+    def activate(self):
+        if self.can_activate():
+            # pre activation user signal
+            user = self.user
+            user.is_active = True
+            user.save()
+            # post activation signal for user 
+            self.activated = True
+            self.save()
+            return True
+        return False
+
     def regenerate(self):
         self.key = None
         self.save()
         return True if self.key is not None else False
 
     def send_activation(self):
-        if not self.activated and self.forced_expired: 
+        if not self.activated and not self.forced_expired: 
             if self.key:
                 base_url = getattr(settings, "BASE_URL", "https://kadencho-ecommerce.herokuapp.com")
-                key_path = self.key # use reverse
+                key_path = reverse("account:email-activate", kwargs={'key' : self.key}) # use reverse
                 path = "{base}{path}".format(base=base_url, path=key_path)
                 context = {
                     'path': path,
@@ -160,22 +190,22 @@ class EmailActivation(models.Model):
                     html_message=html_,
                     fail_silently=False
                 )
+                print("sent")
                 return sent_mail
         return False
 
     
-def pre_save_email_activateion(sender, instance, *args, **kwargs):
+def pre_save_email_activation(sender, instance, *args, **kwargs):
     if not instance.activated and not instance.forced_expired:
         if not instance.key:
             instance.key = unique_key_generator(instance)
 
-pre_save.connect(pre_save_email_activateion, sender=EmailActivation)
+pre_save.connect(pre_save_email_activation, sender=EmailActivation)
 
 
 def post_save_user_create_receiver(sender, instance, created, *args, **kwargs):
     if created:
-        obj, is_created = EmailActivation.objects.get_or_create(user=instance, email=instance.email)
-        print("post_save_user_creation", is_created)
+        obj = EmailActivation.objects.create(user=instance, email=instance.email)
         obj.send_activation()
 
 post_save.connect(post_save_user_create_receiver, sender=User)

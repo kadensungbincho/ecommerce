@@ -18,7 +18,7 @@ def unique_key_generator(instance):
     Klass = instance.__class__
     qs_exists = Klass.objects.filter(key=key).exists()
     if qs_exists:
-        return unique_order_id_generator(instance)
+        return unique_key_generator(instance)
     return key
 
 
