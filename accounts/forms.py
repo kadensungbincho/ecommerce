@@ -14,11 +14,11 @@ class ReactivateEmailForm(forms.Form):
 
     def clean_email(self):
         email = self.cleaned_data.get('email')
-        qs = EmailActivation.objects.email_exists()
+        qs = EmailActivation.objects.email_exists(email)
         if not qs.exists():
             register_link = reverse('register')
             msg  = """This email does not exists, would you like to <a href="{link}">register?</a>
-                """.format(register_link)
+                """.format(link=register_link)
             raise forms.ValidationError(mark_safe(msg))
         return email
 
