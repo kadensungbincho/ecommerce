@@ -1,12 +1,13 @@
 from django import forms
-from django.contrib.auth import get_user_model
+from django.contrib.auth import get_user_model, authenticate, login
 from django.contrib.auth.forms import ReadOnlyPasswordHashField
 from django.urls import reverse
 from django.utils.safestring import mark_safe
 
 User = get_user_model()
 
-from .models import EmailActivation
+from .models import EmailActivation, GuestEmail
+from .signals import user_logged_in
 
 
 class ReactivateEmailForm(forms.Form):
@@ -50,6 +51,14 @@ class UserAdminCreationForm(forms.ModelForm):
         return user
 
 
+class UserDetailChangeForm(forms.ModelForm):
+    full_name = forms.CharField(label='Name', required=False)
+
+    class Meta:
+        model = User
+        fields = ['full_name']
+
+
 class UserAdminChangeForm(forms.ModelForm):
     """A form for updating users. Includes all the fields on
     the user, but replaces the password field with admin's
@@ -68,13 +77,101 @@ class UserAdminChangeForm(forms.ModelForm):
         return self.initial["password"]
 
 
-class GuestForm(forms.Form):
-    email       = forms.EmailField()
+class GuestForm(forms.ModelForm):
+    # email       = forms.EmailField()
+    class Meta:
+        model = GuestEmail
+        fields = [
+            'email'
+        ]
+
+    def __init__(self, request, *args, **kwargs):
+        self.request = request
+        super(GuestForm, self).__init__(*args, **kwargs)
+
+    def save(self, commit=True):
+        # Save the provided password in hashed format
+        obj = super(GuestForm, self).save(commit=False)
+        if commit:
+            obj.save()
+            request = self.request
+            request.session['guest_email_id'] = obj.id
+        return obj
 
 
 class LoginForm(forms.Form):
     email       = forms.EmailField(label='Email')
     password    = forms.CharField(widget=forms.PasswordInput)
+
+    def __init__(self, request, *args, **kwargs):
+        self.request = request
+        super(LoginForm, self).__init__(*args, **kwargs)
+
+    def clean(self):
+        request = self.request  
+        data = self.cleaned_data
+        email = data.get('email')
+        password = data.get('password')
+        qs = User.objects.filter(email=email)
+        if qs.exists():
+            # user email is registered, check active/email activation
+            not_active = qs.filter(is_active=False)
+            if not_active.exists():
+                # not active, check email activation
+                link = reverse("account:resend-activation")
+                reconfirm_msg = """
+                    Go to <a href='{resend_link}'>resend confirmation email</a>
+                """.format(resend_link=link)
+                confirm_email = EmailActivation.objects.filter(email=email)
+                if_confirmable = confirm_email.confirmable().exists()
+                if if_confirmable:
+                    msg1 = "Please check your email to confirm your account or go to " + reconfirm_msg.lower()
+                    raise forms.ValidationError(mark_safe(msg1))
+
+                email_confirm_exists = EmailActivation.objects.email_exists(email)
+                if email_confirm_exists.exists():
+                    msg2 = mark_safe("Email not confirmed. " + reconfirm_msg)
+                    raise forms.ValidationError(msg2)
+                if not if_confirmable and not email_confirm_exists.exists():
+                    raise forms.ValidationError("This user is inactive.")
+
+        user = authenticate(request, username=email, password=password)
+        if user is None:
+            raise forms.ValidationError("Invalid credentials")
+        login(request, user)
+        self.user = user
+        user_logged_in.send(user.__class__, instance=user, request=request)
+        try:
+            del request.session['guest_email_id']
+        except:
+            pass
+        return data
+
+    # def form_valid(self, form):
+    #     request = self.request
+    #     next_ = request.GET.get('next')
+    #     next_post = request.POST.get('next')
+    #     redirect_path = next_ or next_post or None
+    #     email = form.cleaned_data.get('email')
+    #     password = form.cleaned_data.get('password')
+    #     user = authenticate(request, username=email, password=password)
+    #     print(user)
+    #     if user is not None:
+    #         if not user.is_active:
+    #             messages.error(request, "This user is inactive")
+    #             return super(LoginView, self).form_invalid(form)
+    #         login(request, user)
+    #         user_logged_in.send(user.__class__, instance=user, request=request)
+    #         try:
+    #             del request.session['guest_email_id']
+    #         except:
+    #             pass
+    #         if is_safe_url(redirect_path, request.get_host()):
+    #             return redirect(redirect_path)
+    #         else:
+    #             return redirect("/")
+    #     return super(LoginView, self).form_invalid(form)
+
 
 
 class RegisterForm(forms.ModelForm):
