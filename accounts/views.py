@@ -140,10 +140,18 @@ class RegisterView(CreateView):
 
 class UserDetailUpdateView(LoginRequiredMixin, UpdateView):
     form_class = UserDetailChangeForm
-    template_name = 'base/forms.html'
+    template_name = 'accounts/detail-update-view.html'
 
     def get_object(self):
         return self.request.user
+
+    def get_context_data(self, *args, **kwargs):
+        context = super(UserDetailUpdateView, self).get_context_data(*args, **kwargs)
+        context['title'] = 'Change Your Account Details'
+        return context
+
+    def get_success_url(self):
+        return reverse('account:home')
     
 
 # User = get_user_model()

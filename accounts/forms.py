@@ -52,7 +52,7 @@ class UserAdminCreationForm(forms.ModelForm):
 
 
 class UserDetailChangeForm(forms.ModelForm):
-    full_name = forms.CharField(label='Name', required=False)
+    full_name = forms.CharField(label='Name', required=False, widget=forms.TextInput(attrs={"class":"form-control"}))
 
     class Meta:
         model = User
