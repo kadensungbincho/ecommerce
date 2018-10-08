@@ -95,7 +95,7 @@ class Order(models.Model):
         shipping_address_required = not self.cart.is_digital
         shipping_done = False
 
-        if shipping_address_required and self.shipping_adress:
+        if shipping_address_required and self.shipping_address:
             shipping_done = True
         elif shipping_address_required and not self.shipping_address:
             shipping_done = False

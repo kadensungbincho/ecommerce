@@ -1,11 +1,14 @@
 import random
 import os
+from django.conf import settings
+from django.core.files.storage import FileSystemStorage
 from django.db import models
 from django.db.models.signals import pre_save, post_save
 from django.urls import reverse
 from django.db.models import Q
 
-from ecommerce.utils import unique_slug_generator
+from ecommerce.aws.utils import ProtectedRootS3BotoStorage
+from ecommerce.utils import unique_slug_generator, get_filename
 
 
 def get_filename_ext(filepath):
@@ -88,6 +91,10 @@ class Product(models.Model):
     def name(self):
         return self.title
 
+    def get_downloads(self):
+        qs = self.productfile_set.all()
+        return qs
+
 
 def product_pre_save_receiver(sender, instance, *args, **kwargs):
     if not instance.slug:
@@ -95,3 +102,31 @@ def product_pre_save_receiver(sender, instance, *args, **kwargs):
         instance.slug = unique_slug_generator(instance)
 
 pre_save.connect(product_pre_save_receiver, sender=Product)
+
+
+def upload_product_file_loc(instance, filename):
+    print(instance.id)
+    slug = instance.product.slug
+    if not slug:
+        slug = unique_slug_generator(instance.product)
+    location = "product/{}/".format(slug)
+    return location + filename # "/path/to/filename.mp4"
+
+
+class ProductFile(models.Model):
+    product         = models.ForeignKey(Product, on_delete=models.CASCADE)
+    file            = models.FileField(
+                        upload_to=upload_product_file_loc, 
+                        storage=ProtectedRootS3BotoStorage()
+                            #FileSystemStorage(location=settings.MEDIA_ROOT)
+                        )
+    
+    def __str__(self):
+        return str(self.file.name)
+
+    def get_download_url(self):
+        return reverse("products:download", kwargs)
+
+    @property
+    def name(self):
+        return get_filename(self.file.name)

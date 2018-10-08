@@ -1,6 +1,6 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.http import Http404
-from django.views.generic import ListView, DetailView
+from django.http import Http404, HttpResponse
+from django.views.generic import ListView, DetailView, View
 from django.shortcuts import render, get_object_or_404
 
 from analytics.mixins import ObjectViewedMixin
@@ -103,6 +103,20 @@ class ProductDetailSlugView(ObjectViewedMixin, DetailView):
         # object_viewed_signal.send(instance.__class__, instance=instance, request=request)
         return instance
     
+
+class ProductDownloadView(View):
+    def get(self, request, slug, pk, *args, **kwargs): # slug, pk, 
+        qs = Product.objects.filter(slug=slug)
+        if qs.count() != 1:
+            raise Http404("Product not found")
+        product_obj = qs.first()
+        downloads_qs = product_obj.get_downloads().filter(pk=pk) # queryset ProductFile.objects.filter(product=product_obj)
+        if downloads_qs.count != 1:
+            raise Http404("Download not found")
+        download_obj = downloads_qs.first()
+        response = HttpResponse(download_obj.get_download_url())
+        return response
+
 
 class ProductDetailView(ObjectViewedMixin, DetailView):
     # queryset = Product.objects.all()
