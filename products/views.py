@@ -5,7 +5,7 @@ from django.shortcuts import render, get_object_or_404
 
 from analytics.mixins import ObjectViewedMixin
 from carts.models import Cart
-from .models import Product
+from .models import Product, ProductFile
 # Create your views here.
 
 
@@ -103,19 +103,35 @@ class ProductDetailSlugView(ObjectViewedMixin, DetailView):
         # object_viewed_signal.send(instance.__class__, instance=instance, request=request)
         return instance
     
+import os
+from wsgiref.util import FileWrapper # this used in django
+from mimetypes import guess_type
+from django.conf import settings
+
 
 class ProductDownloadView(View):
     def get(self, request, slug, pk, *args, **kwargs): # slug, pk, 
-        qs = Product.objects.filter(slug=slug)
-        if qs.count() != 1:
-            raise Http404("Product not found")
-        product_obj = qs.first()
-        downloads_qs = product_obj.get_downloads().filter(pk=pk) # queryset ProductFile.objects.filter(product=product_obj)
-        if downloads_qs.count != 1:
+        downloads_qs = ProductFile.objects.filter(pk=pk, product__slug=slug)
+        print(downloads_qs.count())
+        if downloads_qs.count() != 1:
             raise Http404("Download not found")
         download_obj = downloads_qs.first()
-        response = HttpResponse(download_obj.get_download_url())
-        return response
+        # permission check
+        file_root = settings.PROTECTED_ROOT
+        print(file_root)
+        filepath = download_obj.file.path # .url /media/
+        print(filepath)
+        final_filepath = os.path.join(file_root, filepath) # where the file is stored
+        with open(final_filepath, 'rb') as f:
+            wrapper = FileWrapper(f)
+            mimetype = "application/force-download"
+            guessed_mimetype = guess_type(filepath)[0] # just check extension
+            if guessed_mimetype:
+                mimetype = guessed_mimetype
+            response = HttpResponse(wrapper, content_type=mimetype)
+            response['Content-Disposition'] = 'attachment;filename=%s' %(download_obj.name)
+            response["X-SendFile"] = str(download_obj.name)
+            return response
 
 
 class ProductDetailView(ObjectViewedMixin, DetailView):
