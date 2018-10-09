@@ -13,12 +13,10 @@ DEFAULT_FILE_STORAGE = 'ecommerce.aws.utils.MediaRootS3BotoStorage'
 STATICFILES_STORAGE = 'ecommerce.aws.utils.StaticRootS3BotoStorage'
 PROTECTEDFILES_STORAGE = 'ecommerce.aws.utils.ProtectedRootS3BotoStorage'
 AWS_STORAGE_BUCKET_NAME = os.environ.get('AWS_STORAGE_BUCKET_NAME')
-S3DIRECT_REGION = 'ap-northeast-2'
+S3DIRECT_REGION = 'us-west-2'
 S3_URL = '//%s.s3.amazonaws.com/' % AWS_STORAGE_BUCKET_NAME
 MEDIA_URL = '//%s.s3.amazonaws.com/media/' % AWS_STORAGE_BUCKET_NAME
 MEDIA_ROOT = MEDIA_URL
-PROTECTED_URL = '//%s.s3.amazonaws.com/protected/' % AWS_STORAGE_BUCKET_NAME
-PROTECTED_ROOT = PROTECTED_URL
 STATIC_URL = S3_URL + 'static/'
 ADMIN_MEDIA_PREFIX = STATIC_URL + 'admin/'
 
@@ -30,3 +28,8 @@ AWS_HEADERS = {
     'Expires': expires,
     'Cache-Control': 'max-age=%d' % (int(two_months.total_seconds()), ),
 }
+
+PROTECTED_DIR_NAME = 'protected'
+PROTECTED_URL = '//%s.s3.amazonaws.com/%s/' %( AWS_STORAGE_BUCKET_NAME, PROTECTED_DIR_NAME)
+
+AWS_DOWNLOAD_EXPIRE = 5000 #(0ptional, in milliseconds)
