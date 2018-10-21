@@ -15,6 +15,7 @@ from ecommerce.mixins import NextUrlMixin, RequestFormAttachMixin
 from .forms import LoginForm, RegisterForm, GuestForm, ReactivateEmailForm, UserDetailChangeForm
 from .models import GuestEmail, EmailActivation
 
+
 @login_required
 def account_home_view(request):
     return render(request, "acocunts/home.html", {})
@@ -22,6 +23,7 @@ def account_home_view(request):
 
 class AccountHomeView(LoginRequiredMixin, DetailView):
     template_name = 'accounts/home.html'
+
     def get_object(self):
         return self.request.user
 
@@ -30,6 +32,7 @@ class AccountEmailActivateView(FormMixin, View):
     success_url = '/login/'
     form_class = ReactivateEmailForm
     key = None
+
     def get(self, request, key=None, *args, **kwargs):
         self.key  = key
         if key is not None:

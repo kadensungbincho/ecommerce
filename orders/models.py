@@ -1,8 +1,12 @@
+import datetime
 import math
 from django.conf import settings
 from django.db import models
+from django.db.models import Count, Sum, Avg
 from django.db.models.signals import pre_save, post_save
 from django.urls import reverse
+from django.utils import timezone
+
 from addresses.models import Address
 from billing.models import BillingProfile
 from carts.models import Cart
@@ -18,6 +22,30 @@ ORDER_STATUS_CHOICES = (
 
 
 class OrderManagerQuerySet(models.query.QuerySet):
+
+    def recent(self):
+        return self.order_by("-updated", "-timestamp")
+
+    def by_date(self):
+        now = timezone.now() - datetime.timedelta(days=13)
+        return self.filter(updated__day__gte=now.day)
+
+    def totals_data(self):
+        return self.aggregate(Sum("total"), Avg("total"))
+
+    def cart_data(self):
+        return self.aggregate(
+            Sum("cart__products__price"),
+            Avg("cart__products__price"),
+            Count("cart__products")
+        )
+
+    def by_status(self, status="shipped"):
+        return self.filter(status=status)
+
+    def not_refunded(self):
+        return self.exclude(status='refunded')
+
     def by_request(self, request):
         billing_profile, created = BillingProfile.objects.new_or_get(request)
         return self.filter(billing_profile=billing_profile)
@@ -52,17 +80,19 @@ class OrderManager(models.Manager):
 
 
 class Order(models.Model):
-    billing_profile     = models.ForeignKey(BillingProfile, null=True, blank=True, on_delete=models.CASCADE)
-    order_id            = models.CharField(max_length=120, blank=True)
-    shipping_address    = models.ForeignKey(Address, related_name='shipping_address', null=True, blank=True, on_delete=models.CASCADE)
-    billing_address     = models.ForeignKey(Address, related_name='billing_address', null=True, blank=True, on_delete=models.CASCADE)
-    cart                = models.ForeignKey(Cart, on_delete=models.CASCADE)
-    status              = models.CharField(max_length=120, default='created', choices=ORDER_STATUS_CHOICES)
-    shipping_total      = models.DecimalField(default=5.99, max_digits=100, decimal_places=2)
-    total               = models.DecimalField(default=0.00, max_digits=100, decimal_places=2)
-    active              = models.BooleanField(default=True)
-    timestamp           = models.DateTimeField(auto_now_add=True)
-    updated             = models.DateTimeField(auto_now=True)
+    billing_profile         = models.ForeignKey(BillingProfile, null=True, blank=True, on_delete=models.CASCADE)
+    order_id                = models.CharField(max_length=120, blank=True)
+    shipping_address        = models.ForeignKey(Address, related_name='shipping_address', null=True, blank=True, on_delete=models.CASCADE)
+    billing_address         = models.ForeignKey(Address, related_name='billing_address', null=True, blank=True, on_delete=models.CASCADE)
+    shipping_address_final  = models.TextField(blank=True, null=True)
+    billing_address_final   = models.TextField(blank=True, null=True)
+    cart                    = models.ForeignKey(Cart, on_delete=models.CASCADE)
+    status                  = models.CharField(max_length=120, default='created', choices=ORDER_STATUS_CHOICES)
+    shipping_total          = models.DecimalField(default=5.99, max_digits=100, decimal_places=2)
+    total                   = models.DecimalField(default=0.00, max_digits=100, decimal_places=2)
+    active                  = models.BooleanField(default=True)
+    timestamp               = models.DateTimeField(auto_now_add=True)
+    updated                 = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return self.order_id
@@ -206,5 +236,3 @@ class ProductPurchase(models.Model):
 
     def __str__(self):
         return self.product.title
-
-

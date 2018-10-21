@@ -45,6 +45,7 @@ class ProductQuerySet(models.query.QuerySet):
                     )
         return self.filter(lookups).distinct()
 
+
 class ProductManager(models.Manager):
     def get_queryset(self):
         return ProductQuerySet(self.model, using=self._db)
@@ -102,6 +103,7 @@ def product_pre_save_receiver(sender, instance, *args, **kwargs):
         # instance.slug = 'abc'
         instance.slug = unique_slug_generator(instance)
 
+
 pre_save.connect(product_pre_save_receiver, sender=Product)
 
 
@@ -128,8 +130,7 @@ class ProductFile(models.Model):
     name            = models.CharField(max_length=120, null=True, blank=True)
     file            = models.FileField(
                         upload_to=upload_product_file_loc, 
-                        storage=ProtectedRootS3BotoStorage()
-                            #FileSystemStorage(location=settings.MEDIA_ROOT)
+                        storage=ProtectedRootS3BotoStorage()  # FileSystemStorage(location=settings.MEDIA_ROOT)
                         )
     free            = models.BooleanField(default=False) # purchase required
     user_required   = models.BooleanField(default=False)
@@ -154,12 +155,12 @@ class ProductFile(models.Model):
         secret_key = getattr(settings, "AWS_SECRET_ACCESS_KEY")
         if not access_key or not secret_key or not bucket or not region:
             return "/product-not-found"
-        base_dir = getattr(settings,"PROTECTED_DIR_NAME", "protected")
+        base_dir = getattr(settings, "PROTECTED_DIR_NAME", "protected")
         path = "{base}/{file_path}".format(base=base_dir, file_path=str(self.file))
         print(path)
-        aws_dl_object =  AWSDownload(access_key, secret_key, bucket, region)
+        aws_dl_object = AWSDownload(access_key, secret_key, bucket, region)
         file_url = aws_dl_object.generate_url(path, new_filename=self.display_name)
         return file_url
 
     def get_download_url(self):
-        return reverse("products:download", kwargs={"slug":self.product.slug, "pk": self.pk})
+        return reverse("products:download", kwargs={"slug": self.product.slug, "pk": self.pk})

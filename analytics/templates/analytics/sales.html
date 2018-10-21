@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class='row'>
+    <div class='col-12'>
+        <h1>Sales Data</h1>
+    </div>
+</div>
+
+<div class='row'>
+    <div class='col-12'>
+        <p>Recent Total : ${{ recent_orders_data.total__sum }}</p>
+        <ol>
+        {% for order in recent_orders %}
+            <li>
+                {{ order.order_id }}
+                {{ order.total }}
+                {{ order.updated }}
+            </li>
+        {% endfor %}
+        </ol>
+    </div>
+    <div class='col-12'>
+        <p>Shipped Total : ${{ shipped_orders_data.total__sum }}</p>
+        <ol>
+        {% for order in shipped_orders %}
+            <li>
+                {{ order.order_id }}
+                {{ order.total }}
+                {{ order.updated }}
+            </li>
+        {% endfor %}
+        </ol>
+    </div>
+    <div class='col-12'>
+        <p>Paid Totals: ${{ paid_orders_data.total__sum }}</p>
+        <ol>
+        {% for order in paid_orders %}
+            <li>
+                {{ order.order_id }}
+                {{ order.total }}
+                {{ order.updated }}
+            </li>
+        {% endfor %}
+        </ol>
+    </div>
+</div>
+{% endblock %}
+).not_refunded().by_status(status='paid')[:5]

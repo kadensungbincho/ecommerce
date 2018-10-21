@@ -110,8 +110,10 @@ from mimetypes import guess_type
 from django.conf import settings
 from orders.models import ProductPurchase
 
+
 class ProductDownloadView(View):
-    def get(self, request, slug, pk, *args, **kwargs): # slug, pk, 
+
+    def get(self, request, slug, pk, *args, **kwargs):  # slug, pk,
         downloads_qs = ProductFile.objects.filter(pk=pk, product__slug=slug)
         if downloads_qs.count() != 1:
             raise Http404("Download not found")
@@ -155,7 +157,6 @@ class ProductDownloadView(View):
         #     response["X-SendFile"] = str(download_obj.name)
         #     return response
         
-
 
 class ProductDetailView(ObjectViewedMixin, DetailView):
     # queryset = Product.objects.all()
